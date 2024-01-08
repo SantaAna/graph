@@ -1,10 +1,12 @@
 defmodule Graph do
+  require Logger
   def dijkstra(graph, starting_node) when is_map_key(graph, starting_node) do
     rec_dijkstra(graph, starting_node, %{
       lctn: %{starting_node => 0},
       lcpn: %{},
       kn: MapSet.new(),
-      vn: MapSet.new()
+      vn: MapSet.new(),
+      queue: Heap.new()
     })
   end
 
@@ -20,11 +22,13 @@ defmodule Graph do
               info
               |> put_in([:lctn, adj], alt_cost)
               |> put_in([:lcpn, adj], current_node)
+              |> Map.update!(:queue, & Heap.insert(&1, {alt_cost, adj})) 
 
             true ->
               info
               |> put_in([:lctn, adj], alt_cost)
               |> put_in([:lcpn, adj], current_node)
+              |> Map.update!(:queue, & Heap.insert(&1, {alt_cost, adj})) 
 
             false ->
               info
@@ -37,13 +41,8 @@ defmodule Graph do
     unvisited_nodes = MapSet.difference(info.kn, info.vn) |> MapSet.to_list()
 
     if length(unvisited_nodes) > 0 do
-      next_node =
-        unvisited_nodes
-        |> Enum.map(&{&1, Map.get(info.lctn, &1)})
-        |> Enum.min_by(fn {_, distance} -> distance end)
-        |> elem(0)
-
-      rec_dijkstra(graph, next_node, info)
+      {{_, next_node}, queue} = Heap.pop_top!(info.queue)
+      rec_dijkstra(graph, next_node, Map.put(info, :queue, queue))
     else
       info
     end
